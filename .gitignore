@@ -1,0 +1,54 @@
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+*.local
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Build and packaging outputs
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Test and runtime artifacts
+*.log
+logs/
+tmp/
+temp/
+.cache/
+
+# Frontend/dependency artifacts, if a UI build is added later
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+dist/
+coverage/
+
+# Editor, OS, and tooling noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
