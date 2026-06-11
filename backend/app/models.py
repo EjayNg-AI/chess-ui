@@ -5,7 +5,6 @@ from typing import Literal
 import chess
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 Color = Literal["white", "black"]
 PieceType = Literal["pawn", "knight", "bishop", "rook", "queen", "king"]
 PromotionPiece = Literal["q", "r", "b", "n"]
@@ -17,8 +16,6 @@ GameResultReason = Literal[
     "insufficient_material",
     "seventyfive_move_rule",
     "fivefold_repetition",
-    "fifty_move_claim",
-    "threefold_claim",
     "timeout",
     "resignation",
     "draw_agreed",
@@ -112,6 +109,10 @@ class ClockStateDto(BaseModel):
 class EngineStatusDto(BaseModel):
     available: bool
     path: str | None
+    configured: bool
+    path_exists: bool
+    executable: bool
+    uci_ready: bool
     error: str | None
 
 

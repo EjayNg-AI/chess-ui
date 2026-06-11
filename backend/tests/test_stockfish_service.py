@@ -7,7 +7,6 @@ import pytest
 from app.models import EngineSettings
 from app.stockfish_service import StockfishEngineService
 
-
 pytestmark = [
     pytest.mark.stockfish,
     pytest.mark.skipif(

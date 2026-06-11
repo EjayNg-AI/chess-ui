@@ -10,6 +10,7 @@ import chess
 
 from .clock_service import ClockService, ClockState, opposite_color
 from .errors import (
+    EngineMoveNotAllowedError,
     EngineReturnedIllegalMoveError,
     EngineUnavailableError,
     GameAlreadyOverError,
@@ -19,10 +20,9 @@ from .errors import (
     InvalidUndoError,
 )
 from .models import (
-    ClockStateDto,
+    ClockSettings,
     Color,
     EngineSettings,
-    ClockSettings,
     GameResultDto,
     GameStateDto,
     LastMoveDto,
@@ -33,7 +33,6 @@ from .models import (
     PieceType,
 )
 from .stockfish_service import EngineProtocol
-
 
 PIECE_NAMES: dict[int, PieceType] = {
     chess.PAWN: "pawn",
@@ -132,17 +131,23 @@ class GameService:
     def apply_move_uci(self, game_id: str, uci: str) -> GameStateDto:
         return self.apply_move(
             game_id,
-            MoveRequest(from_square=uci[:2], to_square=uci[2:4], promotion=uci[4:] or None),
+            MoveRequest.model_validate(
+                {"from": uci[:2], "to": uci[2:4], "promotion": uci[4:] or None}
+            ),
         )
 
     def engine_move(self, game_id: str) -> GameStateDto:
         record = self._require_game(game_id)
         self._ensure_playable(record)
+        self._ensure_engine_turn(record)
         if self.engine_service is None:
             raise EngineUnavailableError("No chess engine is configured.")
 
         try:
-            move = self.engine_service.choose_move(record.board.copy(stack=False), record.engine_settings)
+            move = self.engine_service.choose_move(
+                record.board.copy(stack=False),
+                record.engine_settings,
+            )
         except EngineUnavailableError:
             raise
         except Exception as exc:
@@ -222,6 +227,16 @@ class GameService:
         if record.result is not None:
             raise GameAlreadyOverError("The game is already over.")
 
+    def _ensure_engine_turn(self, record: GameRecord) -> None:
+        if record.mode == "engine_vs_engine":
+            return
+        if (
+            record.mode == "human_vs_engine"
+            and record.human_color != self._color_name(record.board.turn)
+        ):
+            return
+        raise EngineMoveNotAllowedError("It is not the engine's turn in this game mode.")
+
     def _make_snapshot(self, record: GameRecord) -> GameSnapshot:
         return GameSnapshot(
             fen=record.board.fen(),
@@ -254,12 +269,14 @@ class GameService:
             fen_after=record.board.fen(),
         )
         record.move_history.append(history_entry)
-        record.last_move = LastMoveDto(
-            uci=move.uci(),
-            san=san,
-            from_square=chess.square_name(move.from_square),
-            to_square=chess.square_name(move.to_square),
-            promotion=move.uci()[4:] or None,
+        record.last_move = LastMoveDto.model_validate(
+            {
+                "uci": move.uci(),
+                "san": san,
+                "from": chess.square_name(move.from_square),
+                "to": chess.square_name(move.to_square),
+                "promotion": move.uci()[4:] or None,
+            }
         )
 
         clock_result = self.clock_service.apply_move(record.clock, moving_color)
@@ -323,7 +340,11 @@ class GameService:
         record.result = result
 
     def _refresh_clock_timeout(self, record: GameRecord) -> None:
-        if record.result is not None or not record.clock.enabled or record.clock.active_color is None:
+        if (
+            record.result is not None
+            or not record.clock.enabled
+            or record.clock.active_color is None
+        ):
             return
         snapshot = self.clock_service.snapshot(record.clock)
         active = record.clock.active_color
@@ -344,7 +365,9 @@ class GameService:
     def _build_state(self, record: GameRecord) -> GameStateDto:
         self._refresh_clock_timeout(record)
         pieces = self._pieces(record.board, record.piece_ids_by_square)
-        legal_moves = [] if record.result is not None else [move.uci() for move in record.board.legal_moves]
+        legal_moves = (
+            [] if record.result is not None else [move.uci() for move in record.board.legal_moves]
+        )
         return GameStateDto(
             game_id=record.game_id,
             fen=record.board.fen(),

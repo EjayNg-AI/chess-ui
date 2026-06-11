@@ -6,7 +6,6 @@ from app.game_service import GameService
 from app.main import app
 from app.stockfish_service import FakeEngineService
 
-
 pytestmark = pytest.mark.anyio
 
 
@@ -54,7 +53,15 @@ async def test_engine_status_endpoint(client):
     response = await client.get("/api/engine/status")
 
     assert response.status_code == 200
-    assert response.json() == {"available": True, "path": None, "error": None}
+    assert response.json() == {
+        "available": True,
+        "path": None,
+        "configured": True,
+        "path_exists": True,
+        "executable": True,
+        "uci_ready": True,
+        "error": None,
+    }
 
 
 async def test_create_game_endpoint(client):
@@ -135,12 +142,23 @@ async def test_move_endpoint_rejects_invalid_square_shape(client):
 
 
 async def test_engine_move_endpoint(client):
-    game = await create_game(client)
+    response = await client.post("/api/games", json={"mode": "engine_vs_engine"})
+    assert response.status_code == 200
+    game = response.json()
 
     response = await client.post(f"/api/games/{game['game_id']}/engine-move")
 
     assert response.status_code == 200
     assert response.json()["last_move"]["uci"] == "e2e4"
+
+
+async def test_engine_move_endpoint_rejects_human_turn(client):
+    game = await create_game(client)
+
+    response = await client.post(f"/api/games/{game['game_id']}/engine-move")
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "engine_move_not_allowed"
 
 
 async def test_undo_endpoint(client):

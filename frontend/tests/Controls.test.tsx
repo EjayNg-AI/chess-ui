@@ -6,6 +6,9 @@ function renderControls(overrides = {}) {
   const props = {
     pending: false,
     selfPlayRunning: false,
+    mode: 'engine_vs_engine' as const,
+    gameOver: false,
+    engineAvailable: true,
     onNewGame: vi.fn(),
     onFlip: vi.fn(),
     onUndo: vi.fn(),
@@ -67,5 +70,20 @@ describe('Controls', () => {
     screen.getAllByRole('button').forEach((button) => {
       expect(button).toBeDisabled()
     })
+  })
+
+  it('self_play_controls_disabled_outside_engine_vs_engine', () => {
+    renderControls({ mode: 'human_vs_engine' })
+
+    expect(screen.getByRole('button', { name: /self-play start/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /self-play step/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /new game/i })).not.toBeDisabled()
+  })
+
+  it('self_play_controls_disabled_when_engine_unavailable', () => {
+    renderControls({ engineAvailable: false })
+
+    expect(screen.getByRole('button', { name: /self-play start/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /self-play step/i })).toBeDisabled()
   })
 })

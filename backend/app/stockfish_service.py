@@ -33,7 +33,15 @@ class FakeEngineService:
         return chess.Move.from_uci(move)
 
     def status(self) -> EngineStatusDto:
-        return EngineStatusDto(available=True, path=None, error=None)
+        return EngineStatusDto(
+            available=True,
+            path=None,
+            configured=True,
+            path_exists=True,
+            executable=True,
+            uci_ready=True,
+            error=None,
+        )
 
 
 class StockfishEngineService:
@@ -46,8 +54,13 @@ class StockfishEngineService:
     def _ensure_engine(self) -> chess.engine.SimpleEngine:
         if not self.stockfish_path:
             raise EngineUnavailableError("STOCKFISH_PATH is not configured.")
-        if not Path(self.stockfish_path).exists():
+        path = Path(self.stockfish_path)
+        if not path.exists():
             raise EngineUnavailableError(f"Stockfish binary does not exist: {self.stockfish_path}")
+        if not path.is_file() or not os.access(path, os.X_OK):
+            raise EngineUnavailableError(
+                f"Stockfish binary is not executable: {self.stockfish_path}"
+            )
         if self._engine is None:
             self._engine = chess.engine.SimpleEngine.popen_uci(self.stockfish_path, timeout=5.0)
         return self._engine
@@ -80,15 +93,67 @@ class StockfishEngineService:
             return EngineStatusDto(
                 available=False,
                 path=None,
+                configured=False,
+                path_exists=False,
+                executable=False,
+                uci_ready=False,
                 error="STOCKFISH_PATH is not configured.",
             )
-        if not Path(self.stockfish_path).exists():
+
+        path = Path(self.stockfish_path)
+        path_exists = path.exists()
+        executable = path.is_file() and os.access(path, os.X_OK)
+        if not path_exists:
             return EngineStatusDto(
                 available=False,
                 path=self.stockfish_path,
+                configured=True,
+                path_exists=False,
+                executable=False,
+                uci_ready=False,
                 error=f"Stockfish binary does not exist: {self.stockfish_path}",
             )
-        return EngineStatusDto(available=True, path=self.stockfish_path, error=None)
+        if not executable:
+            return EngineStatusDto(
+                available=False,
+                path=self.stockfish_path,
+                configured=True,
+                path_exists=True,
+                executable=False,
+                uci_ready=False,
+                error=f"Stockfish binary is not executable: {self.stockfish_path}",
+            )
+
+        with self._lock:
+            try:
+                engine = self._ensure_engine()
+                engine.ping()
+            except Exception as exc:
+                if self._engine is not None:
+                    try:
+                        self._engine.quit()
+                    except Exception:
+                        pass
+                    self._engine = None
+                return EngineStatusDto(
+                    available=False,
+                    path=self.stockfish_path,
+                    configured=True,
+                    path_exists=True,
+                    executable=True,
+                    uci_ready=False,
+                    error=f"Stockfish UCI readiness check failed: {exc}",
+                )
+
+        return EngineStatusDto(
+            available=True,
+            path=self.stockfish_path,
+            configured=True,
+            path_exists=True,
+            executable=True,
+            uci_ready=True,
+            error=None,
+        )
 
     def close(self) -> None:
         with self._lock:

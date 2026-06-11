@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useGame } from '../src/hooks/useGame'
-import { defaultGameSettings, type GameSettings } from '../src/types/chess'
+import { defaultGameSettings, type EngineStatusDto, type GameSettings } from '../src/types/chess'
 import { history, lastMove, makeGameState, result as makeResult } from './fixtures'
 
 const mockApi = vi.hoisted(() => ({
@@ -25,11 +25,24 @@ function engineVsEngineSettings(): GameSettings {
   }
 }
 
+function engineStatus(overrides: Partial<EngineStatusDto> = {}): EngineStatusDto {
+  return {
+    available: true,
+    path: null,
+    configured: true,
+    path_exists: true,
+    executable: true,
+    uci_ready: true,
+    error: null,
+    ...overrides,
+  }
+}
+
 describe('useGame', () => {
   beforeEach(() => {
     vi.useRealTimers()
     vi.clearAllMocks()
-    mockApi.engineStatus.mockResolvedValue({ available: true, path: null, error: null })
+    mockApi.engineStatus.mockResolvedValue(engineStatus())
     mockApi.createGame.mockResolvedValue(makeGameState())
     mockApi.move.mockResolvedValue(makeGameState())
     mockApi.engineMove.mockResolvedValue(makeGameState({ turn: 'black' }))
@@ -197,6 +210,40 @@ describe('useGame', () => {
     })
 
     expect(mockApi.engineMove).toHaveBeenCalledTimes(1)
+  })
+
+  it('self_play_step_ignores_human_turn', async () => {
+    const { result } = renderHook(() => useGame())
+    await waitFor(() => expect(result.current.game).not.toBeNull())
+
+    await act(async () => {
+      await result.current.selfPlayStep()
+    })
+
+    expect(mockApi.engineMove).not.toHaveBeenCalled()
+  })
+
+  it('self_play_does_not_start_when_engine_unavailable', async () => {
+    mockApi.engineStatus.mockResolvedValue(
+      engineStatus({
+        available: false,
+        uci_ready: false,
+        error: 'STOCKFISH_PATH is not configured.',
+      }),
+    )
+    mockApi.createGame.mockResolvedValue(makeGameState({ mode: 'engine_vs_engine', human_color: null }))
+    const { result } = renderHook(() =>
+      useGame({ initialSettings: engineVsEngineSettings() }),
+    )
+    await waitFor(() => expect(result.current.engineStatus?.available).toBe(false))
+    await waitFor(() => expect(result.current.game).not.toBeNull())
+
+    act(() => {
+      result.current.startSelfPlay()
+    })
+
+    expect(result.current.selfPlayRunning).toBe(false)
+    expect(mockApi.engineMove).not.toHaveBeenCalled()
   })
 
   it('self_play_loop_stops_on_game_over', async () => {

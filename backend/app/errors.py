@@ -45,6 +45,11 @@ class EngineReturnedIllegalMoveError(ChessAppError):
     code = "engine_returned_illegal_move"
 
 
+class EngineMoveNotAllowedError(ChessAppError):
+    status_code = 400
+    code = "engine_move_not_allowed"
+
+
 class InvalidUndoError(ChessAppError):
     status_code = 400
     code = "invalid_undo"

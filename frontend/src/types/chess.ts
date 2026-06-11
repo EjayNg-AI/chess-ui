@@ -69,6 +69,10 @@ export type ClockStateDto = {
 export type EngineStatusDto = {
   available: boolean
   path: string | null
+  configured: boolean
+  path_exists: boolean
+  executable: boolean
+  uci_ready: boolean
   error: string | null
 }
 
@@ -80,8 +84,6 @@ export type GameResultDto = {
     | 'insufficient_material'
     | 'seventyfive_move_rule'
     | 'fivefold_repetition'
-    | 'fifty_move_claim'
-    | 'threefold_claim'
     | 'timeout'
     | 'resignation'
     | 'draw_agreed'

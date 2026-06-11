@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from .models import ClockSettings, ClockStateDto, Color, GameResultDto
 
@@ -15,7 +15,7 @@ class ClockState:
     increment_ms: int
     last_started_at_monotonic: float | None
 
-    def copy(self) -> "ClockState":
+    def copy(self) -> ClockState:
         return ClockState(
             enabled=self.enabled,
             white_ms=self.white_ms,

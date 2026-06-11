@@ -41,6 +41,25 @@ function shouldEngineReply(game: GameStateDto): boolean {
   )
 }
 
+function canEngineMove(game: GameStateDto): boolean {
+  if (game.game_over) {
+    return false
+  }
+  if (game.mode === 'engine_vs_engine') {
+    return true
+  }
+  return game.mode === 'human_vs_engine' && game.human_color !== null && game.turn !== game.human_color
+}
+
+function canSelfPlay(game: GameStateDto | null, engineStatus: EngineStatusDto | null): boolean {
+  return Boolean(
+    game &&
+      game.mode === 'engine_vs_engine' &&
+      !game.game_over &&
+      engineStatus?.available === true,
+  )
+}
+
 function resolveOrientation(settings: GameSettings, game: GameStateDto | null): Color {
   if (settings.orientation === 'auto') {
     return game?.orientation ?? 'white'
@@ -82,6 +101,10 @@ export function useGame(options: UseGameOptions = {}) {
       const status = {
         available: false,
         path: null,
+        configured: false,
+        path_exists: false,
+        executable: false,
+        uci_ready: false,
         error: caught instanceof Error ? caught.message : 'Unable to check Stockfish status.',
       }
       setEngineStatus(status)
@@ -162,8 +185,12 @@ export function useGame(options: UseGameOptions = {}) {
     }
   }
 
-  async function engineMoveOnce(): Promise<GameStateDto | null> {
-    if (!gameRef.current || gameRef.current.game_over) {
+  const engineMoveOnce = useCallback(async (): Promise<GameStateDto | null> => {
+    if (
+      !gameRef.current ||
+      !canEngineMove(gameRef.current) ||
+      engineStatus?.available === false
+    ) {
       return gameRef.current
     }
 
@@ -183,7 +210,7 @@ export function useGame(options: UseGameOptions = {}) {
     } finally {
       setPending(false)
     }
-  }
+  }, [engineStatus])
 
   async function undo(): Promise<void> {
     if (!gameRef.current) {
@@ -225,6 +252,9 @@ export function useGame(options: UseGameOptions = {}) {
   }
 
   function startSelfPlay() {
+    if (!canSelfPlay(gameRef.current, engineStatus)) {
+      return
+    }
     setSelfPlayRunning(true)
   }
 
@@ -233,7 +263,12 @@ export function useGame(options: UseGameOptions = {}) {
   }
 
   function toggleSelfPlay() {
-    setSelfPlayRunning((running) => !running)
+    setSelfPlayRunning((running) => {
+      if (running) {
+        return false
+      }
+      return canSelfPlay(gameRef.current, engineStatus)
+    })
   }
 
   useEffect(() => {
@@ -243,7 +278,7 @@ export function useGame(options: UseGameOptions = {}) {
 
     const timer = window.setInterval(() => {
       const currentGame = gameRef.current
-      if (!currentGame || currentGame.game_over) {
+      if (!canSelfPlay(currentGame, engineStatus)) {
         setSelfPlayRunning(false)
         return
       }
@@ -254,7 +289,7 @@ export function useGame(options: UseGameOptions = {}) {
     }, 500)
 
     return () => window.clearInterval(timer)
-  }, [selfPlayRunning])
+  }, [engineMoveOnce, engineStatus, selfPlayRunning])
 
   return {
     game,

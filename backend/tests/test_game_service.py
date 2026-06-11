@@ -2,7 +2,7 @@ import chess
 import pytest
 
 from app.clock_service import ClockService
-from app.errors import EngineReturnedIllegalMoveError, IllegalMoveError
+from app.errors import EngineMoveNotAllowedError, EngineReturnedIllegalMoveError, IllegalMoveError
 from app.game_service import GameService
 from app.models import ClockSettings, NewGameRequest
 from app.stockfish_service import FakeEngineService
@@ -43,7 +43,10 @@ def test_apply_legal_move_updates_board():
     assert state.last_move is not None
     assert state.last_move.uci == "e2e4"
     assert len(state.move_history) == 1
-    assert all(chess.Board(state.fen).piece_at(chess.parse_square(move[:2])).color == chess.BLACK for move in state.legal_moves)
+    assert all(
+        chess.Board(state.fen).piece_at(chess.parse_square(move[:2])).color == chess.BLACK
+        for move in state.legal_moves
+    )
 
 
 def test_apply_illegal_move_rejected():
@@ -163,7 +166,7 @@ def test_undo_restores_board_piece_ids_and_history():
 def test_engine_move_uses_fake_engine_and_updates_state():
     fake_engine = FakeEngineService(["e2e4"])
     service = GameService(engine_service=fake_engine, clock_service=ClockService(lambda: 0.0))
-    state = service.create_game()
+    state = service.create_game(NewGameRequest(mode="engine_vs_engine"))
 
     state = service.engine_move(state.game_id)
 
@@ -173,9 +176,28 @@ def test_engine_move_uses_fake_engine_and_updates_state():
     assert state.turn == "black"
 
 
+def test_engine_move_rejected_when_human_turn():
+    service = service_with_fake_engine(["e2e4"])
+    state = service.create_game()
+
+    with pytest.raises(EngineMoveNotAllowedError):
+        service.engine_move(state.game_id)
+
+
+def test_engine_move_allowed_for_human_vs_engine_engine_turn():
+    service = service_with_fake_engine(["e7e5"])
+    state = service.create_game()
+    state = service.apply_move_uci(state.game_id, "e2e4")
+
+    state = service.engine_move(state.game_id)
+
+    assert state.last_move is not None
+    assert state.last_move.uci == "e7e5"
+
+
 def test_fake_engine_illegal_move_does_not_mutate_state():
     service = service_with_fake_engine(["e2e5"])
-    state = service.create_game()
+    state = service.create_game(NewGameRequest(mode="engine_vs_engine"))
     starting_fen = state.fen
 
     with pytest.raises(EngineReturnedIllegalMoveError):

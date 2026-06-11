@@ -72,6 +72,10 @@ async def engine_status(request: Request) -> EngineStatusDto:
         return EngineStatusDto(
             available=False,
             path=None,
+            configured=False,
+            path_exists=False,
+            executable=False,
+            uci_ready=False,
             error="No chess engine service is configured.",
         )
     return status()

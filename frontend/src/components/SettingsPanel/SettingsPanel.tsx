@@ -1,5 +1,11 @@
 import type { GameSettings } from '../../types/chess'
 
+function clampInput(value: string, min: number, max: number, fallback: number): number {
+  const parsed = Number(value)
+  const next = Number.isFinite(parsed) ? parsed : fallback
+  return Math.round(Math.min(Math.max(next, min), max))
+}
+
 type SettingsPanelProps = {
   settings: GameSettings
   onChange: (settings: GameSettings) => void
@@ -70,7 +76,10 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           onChange={(event) =>
             onChange({
               ...settings,
-              engine: { ...settings.engine, movetime_ms: Number(event.target.value) },
+              engine: {
+                ...settings.engine,
+                movetime_ms: clampInput(event.target.value, 50, 60_000, settings.engine.movetime_ms),
+              },
             })
           }
         />
@@ -80,13 +89,16 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         Fixed depth
         <input
           min={1}
-          max={30}
+          max={40}
           type="number"
           value={settings.engine.depth ?? 10}
           onChange={(event) =>
             onChange({
               ...settings,
-              engine: { ...settings.engine, depth: Number(event.target.value) },
+              engine: {
+                ...settings.engine,
+                depth: clampInput(event.target.value, 1, 40, settings.engine.depth ?? 10),
+              },
             })
           }
         />
@@ -102,7 +114,15 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           onChange={(event) =>
             onChange({
               ...settings,
-              engine: { ...settings.engine, skill_level: Number(event.target.value) },
+              engine: {
+                ...settings.engine,
+                skill_level: clampInput(
+                  event.target.value,
+                  0,
+                  20,
+                  settings.engine.skill_level,
+                ),
+              },
             })
           }
         />
@@ -126,12 +146,22 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         Initial minutes
         <input
           min={1}
+          max={1440}
           type="number"
           value={Math.round(settings.clock.initial_ms / 60_000)}
           onChange={(event) =>
             onChange({
               ...settings,
-              clock: { ...settings.clock, initial_ms: Number(event.target.value) * 60_000 },
+              clock: {
+                ...settings.clock,
+                initial_ms:
+                  clampInput(
+                    event.target.value,
+                    1,
+                    1440,
+                    settings.clock.initial_ms / 60_000,
+                  ) * 60_000,
+              },
             })
           }
         />
@@ -141,12 +171,18 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
         Increment seconds
         <input
           min={0}
+          max={60}
           type="number"
           value={Math.round(settings.clock.increment_ms / 1000)}
           onChange={(event) =>
             onChange({
               ...settings,
-              clock: { ...settings.clock, increment_ms: Number(event.target.value) * 1000 },
+              clock: {
+                ...settings.clock,
+                increment_ms:
+                  clampInput(event.target.value, 0, 60, settings.clock.increment_ms / 1000) *
+                  1000,
+              },
             })
           }
         />

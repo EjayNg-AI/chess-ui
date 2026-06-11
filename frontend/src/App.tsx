@@ -38,12 +38,13 @@ function resultText(game: ReturnType<typeof useGame>['game']): string {
 function App() {
   const gameController = useGame()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [showEngineSetup, setShowEngineSetup] = useState(false)
   const game = gameController.game
-  const usesEngine = gameController.settings.mode !== 'human_vs_human'
+  const activeMode = game?.mode ?? gameController.settings.mode
+  const usesEngine = activeMode !== 'human_vs_human'
+  const engineAvailable = gameController.engineStatus?.available === true
   const engineUnavailable =
-    usesEngine &&
-    gameController.engineStatus !== null &&
-    gameController.engineStatus.available === false
+    usesEngine && gameController.engineStatus !== null && !gameController.engineStatus.available
   const topColor = opposite(gameController.orientation)
   const bottomColor = gameController.orientation
   const boardDisabled =
@@ -53,6 +54,12 @@ function App() {
     game.game_over ||
     (game.mode === 'human_vs_engine' && game.human_color !== game.turn) ||
     game.mode === 'engine_vs_engine'
+
+  function switchToHumanVsHuman() {
+    const nextSettings = { ...gameController.settings, mode: 'human_vs_human' as const }
+    gameController.setSettings(nextSettings)
+    void gameController.newGame(nextSettings)
+  }
 
   return (
     <main className="app-shell">
@@ -94,15 +101,44 @@ function App() {
           <span className="status-label">Local Chess</span>
           <strong>{resultText(game)}</strong>
           {engineUnavailable ? (
-            <p className="warning-text">
-              Stockfish unavailable
-              {gameController.engineStatus?.error ? `: ${gameController.engineStatus.error}` : ''}
-            </p>
+            <div className="engine-status-card" role="status">
+              <div>
+                <strong>Stockfish unavailable</strong>
+                {gameController.engineStatus?.error ? (
+                  <p>{gameController.engineStatus.error}</p>
+                ) : null}
+              </div>
+              <div className="engine-status-actions">
+                <button
+                  type="button"
+                  onClick={() => void gameController.refreshEngineStatus()}
+                  disabled={gameController.pending || gameController.loading}
+                >
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  onClick={switchToHumanVsHuman}
+                  disabled={gameController.pending || gameController.loading}
+                >
+                  Human vs Human
+                </button>
+                <button type="button" onClick={() => setShowEngineSetup((shown) => !shown)}>
+                  {showEngineSetup ? 'Hide setup' : 'Show setup'}
+                </button>
+              </div>
+              {showEngineSetup ? (
+                <code className="engine-setup-command">STOCKFISH_PATH=/usr/games/stockfish</code>
+              ) : null}
+            </div>
           ) : null}
           {gameController.error ? <p className="error-text">{gameController.error}</p> : null}
         </div>
 
         <Controls
+          engineAvailable={engineAvailable}
+          gameOver={game?.game_over ?? true}
+          mode={game?.mode ?? null}
           onFlip={gameController.flipBoard}
           onNewGame={() => void gameController.newGame()}
           onResign={() => void gameController.resign()}
