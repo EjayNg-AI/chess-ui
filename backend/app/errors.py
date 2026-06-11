@@ -30,6 +30,11 @@ class InvalidPromotionError(ChessAppError):
     code = "invalid_promotion"
 
 
+class InvalidFenError(ChessAppError):
+    status_code = 400
+    code = "invalid_fen"
+
+
 class EngineUnavailableError(ChessAppError):
     status_code = 503
     code = "engine_unavailable"

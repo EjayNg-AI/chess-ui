@@ -6,6 +6,7 @@ import { history, lastMove, makeGameState, result as makeResult } from './fixtur
 
 const mockApi = vi.hoisted(() => ({
   createGame: vi.fn(),
+  engineStatus: vi.fn(),
   getGame: vi.fn(),
   move: vi.fn(),
   engineMove: vi.fn(),
@@ -28,6 +29,7 @@ describe('useGame', () => {
   beforeEach(() => {
     vi.useRealTimers()
     vi.clearAllMocks()
+    mockApi.engineStatus.mockResolvedValue({ available: true, path: null, error: null })
     mockApi.createGame.mockResolvedValue(makeGameState())
     mockApi.move.mockResolvedValue(makeGameState())
     mockApi.engineMove.mockResolvedValue(makeGameState({ turn: 'black' }))
@@ -45,6 +47,33 @@ describe('useGame', () => {
       human_color: 'white',
       clock: defaultGameSettings.clock,
       engine: defaultGameSettings.engine,
+    })
+  })
+
+  it('loads_engine_status_on_mount', async () => {
+    renderHook(() => useGame({ autoStart: false }))
+
+    await waitFor(() => expect(mockApi.engineStatus).toHaveBeenCalled())
+  })
+
+  it('new_game_sends_manual_fen_when_configured', async () => {
+    const settings = {
+      ...defaultGameSettings,
+      fen: '  7k/4P3/8/8/8/8/8/4K3 w - - 0 1  ',
+    }
+    const { result } = renderHook(() => useGame({ autoStart: false, initialSettings: settings }))
+    await waitFor(() => expect(mockApi.engineStatus).toHaveBeenCalled())
+
+    await act(async () => {
+      await result.current.newGame(settings)
+    })
+
+    expect(mockApi.createGame).toHaveBeenCalledWith({
+      mode: 'human_vs_engine',
+      human_color: 'white',
+      clock: defaultGameSettings.clock,
+      engine: defaultGameSettings.engine,
+      fen: '7k/4P3/8/8/8/8/8/4K3 w - - 0 1',
     })
   })
 

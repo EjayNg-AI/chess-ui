@@ -39,6 +39,11 @@ function App() {
   const gameController = useGame()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const game = gameController.game
+  const usesEngine = gameController.settings.mode !== 'human_vs_human'
+  const engineUnavailable =
+    usesEngine &&
+    gameController.engineStatus !== null &&
+    gameController.engineStatus.available === false
   const topColor = opposite(gameController.orientation)
   const bottomColor = gameController.orientation
   const boardDisabled =
@@ -88,6 +93,12 @@ function App() {
         <div className="status-strip">
           <span className="status-label">Local Chess</span>
           <strong>{resultText(game)}</strong>
+          {engineUnavailable ? (
+            <p className="warning-text">
+              Stockfish unavailable
+              {gameController.engineStatus?.error ? `: ${gameController.engineStatus.error}` : ''}
+            </p>
+          ) : null}
           {gameController.error ? <p className="error-text">{gameController.error}</p> : null}
         </div>
 

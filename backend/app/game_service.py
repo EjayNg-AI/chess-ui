@@ -15,6 +15,7 @@ from .errors import (
     GameAlreadyOverError,
     GameNotFoundError,
     IllegalMoveError,
+    InvalidFenError,
     InvalidUndoError,
 )
 from .models import (
@@ -67,6 +68,7 @@ class GameRecord:
     orientation: Color
     engine_settings: EngineSettings
     clock_settings: ClockSettings
+    starting_fen: str | None
     clock_service: ClockService
     result: GameResultDto | None = None
     last_move: LastMoveDto | None = None
@@ -92,7 +94,8 @@ class GameService:
         game_id: str | None = None,
     ) -> GameStateDto:
         request = request or NewGameRequest()
-        board = chess.Board(fen) if fen else chess.Board()
+        starting_fen = request.fen or fen
+        board = self._create_board(starting_fen)
         human_color = self._resolve_human_color(request)
         orientation: Color = human_color or "white"
         record = GameRecord(
@@ -107,6 +110,7 @@ class GameService:
             orientation=orientation,
             engine_settings=request.engine,
             clock_settings=request.clock,
+            starting_fen=starting_fen,
             clock_service=self.clock_service,
         )
         self._detect_result(record)
@@ -188,8 +192,17 @@ class GameService:
             human_color=record.human_color or "white",
             clock=record.clock_settings,
             engine=record.engine_settings,
+            fen=record.starting_fen,
         )
         return self.create_game(request, game_id=game_id)
+
+    def _create_board(self, fen: str | None) -> chess.Board:
+        if not fen:
+            return chess.Board()
+        try:
+            return chess.Board(fen)
+        except ValueError as exc:
+            raise InvalidFenError(f"Invalid FEN: {fen}") from exc
 
     def _resolve_human_color(self, request: NewGameRequest) -> Color | None:
         if request.mode == "engine_vs_engine":
@@ -307,10 +320,6 @@ class GameService:
             result = GameResultDto(result="1/2-1/2", reason="seventyfive_move_rule", winner=None)
         elif board.is_fivefold_repetition():
             result = GameResultDto(result="1/2-1/2", reason="fivefold_repetition", winner=None)
-        elif board.can_claim_fifty_moves():
-            result = GameResultDto(result="1/2-1/2", reason="fifty_move_claim", winner=None)
-        elif board.can_claim_threefold_repetition():
-            result = GameResultDto(result="1/2-1/2", reason="threefold_claim", winner=None)
         record.result = result
 
     def _refresh_clock_timeout(self, record: GameRecord) -> None:

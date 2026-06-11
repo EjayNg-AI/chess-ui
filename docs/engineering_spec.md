@@ -2238,7 +2238,7 @@ Optional Stockfish integration:
 
 ```bash
 cd backend
-STOCKFISH_PATH=/usr/games/stockfish pytest -m stockfish
+RUN_STOCKFISH_TESTS=1 STOCKFISH_PATH=/usr/games/stockfish pytest -m stockfish
 ```
 
 Frontend:
@@ -2286,4 +2286,3 @@ The frontend does not directly communicate with Stockfish.
 ```
 
 ---
-

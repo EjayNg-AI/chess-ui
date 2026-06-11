@@ -7,6 +7,7 @@ import {
   squareToRowCol,
   type Orientation,
 } from './boardGeometry'
+import { legalTargetsForSquare, promotionOptionsForMove } from './boardRules'
 import './Board.css'
 import { pieceGlyph } from './pieceRendering'
 
@@ -34,20 +35,6 @@ type PendingPromotion = {
   options: PromotionPiece[]
 }
 
-export function legalTargetsForSquare(square: string, legalMoves: string[]): string[] {
-  return legalMoves.filter((uci) => uci.slice(0, 2) === square).map((uci) => uci.slice(2, 4))
-}
-
-export function promotionOptionsForMove(
-  from: string,
-  to: string,
-  legalMoves: string[],
-): PromotionPiece[] {
-  return legalMoves
-    .filter((uci) => uci.slice(0, 2) === from && uci.slice(2, 4) === to && uci.length === 5)
-    .map((uci) => uci[4] as PromotionPiece)
-}
-
 export function Board({
   pieces,
   legalMoves,
@@ -67,7 +54,7 @@ export function Board({
     return new Map(pieces.map((piece) => [piece.square, piece]))
   }, [pieces])
 
-  const activeSource = dragging?.from ?? selectedSquare
+  const activeSource = disabled ? null : (dragging?.from ?? selectedSquare)
   const legalTargets = activeSource ? legalTargetsForSquare(activeSource, legalMoves) : []
   const checkedKingSquare = check
     ? pieces.find((piece) => piece.type === 'king' && piece.color === turn)?.square
@@ -93,6 +80,13 @@ export function Board({
       x: event.clientX - rect.left - squareSize / 2,
       y: event.clientY - rect.top - squareSize / 2,
     })
+  }
+
+  function selectPiece(piece: PieceDto) {
+    if (disabled || legalTargetsForSquare(piece.square, legalMoves).length === 0) {
+      return
+    }
+    setSelectedSquare(piece.square)
   }
 
   function updateDrag(event: PointerEvent<HTMLDivElement>) {
@@ -142,7 +136,7 @@ export function Board({
     if (lastMove && (lastMove.from === square || lastMove.to === square)) {
       classes.push('last-move')
     }
-    if (selectedSquare === square) {
+    if (!disabled && selectedSquare === square) {
       classes.push('selected')
     }
     if (checkedKingSquare === square) {
@@ -208,7 +202,7 @@ export function Board({
               className={`piece ${piece.color} ${isDragging ? 'dragging' : ''}`}
               data-testid={`piece-${piece.id}`}
               key={piece.id}
-              onClick={() => setSelectedSquare(piece.square)}
+              onClick={() => selectPiece(piece)}
               onPointerDown={(event) => startDrag(piece, event)}
               style={style}
               type="button"

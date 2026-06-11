@@ -46,7 +46,10 @@ describe('board geometry', () => {
   it('client_point_to_square_white', () => {
     expect(clientPointToSquare(50, 50, rect, 'white')).toBe('a8')
     expect(clientPointToSquare(750, 750, rect, 'white')).toBe('h1')
+    expect(clientPointToSquare(799, 799, rect, 'white')).toBe('h1')
     expect(clientPointToSquare(-1, 10, rect, 'white')).toBeNull()
+    expect(clientPointToSquare(800, 10, rect, 'white')).toBeNull()
+    expect(clientPointToSquare(10, 800, rect, 'white')).toBeNull()
     expect(clientPointToSquare(801, 10, rect, 'white')).toBeNull()
   })
 

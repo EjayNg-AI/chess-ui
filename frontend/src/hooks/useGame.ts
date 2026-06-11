@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { gameApi } from '../api/client'
 import {
   defaultGameSettings,
   type Color,
+  type EngineStatusDto,
   type GameSettings,
   type GameStateDto,
   type MoveRequest,
@@ -21,11 +22,13 @@ function delay(milliseconds: number): Promise<void> {
 }
 
 function requestFromSettings(settings: GameSettings): NewGameRequest {
+  const fen = settings.fen?.trim()
   return {
     mode: settings.mode,
     human_color: settings.human_color,
     clock: settings.clock,
     engine: settings.engine,
+    ...(fen ? { fen } : {}),
   }
 }
 
@@ -53,6 +56,7 @@ export function useGame(options: UseGameOptions = {}) {
   const [loading, setLoading] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [engineStatus, setEngineStatus] = useState<EngineStatusDto | null>(null)
   const [orientation, setOrientation] = useState<Color>(
     resolveOrientation(options.initialSettings ?? defaultGameSettings, null),
   )
@@ -69,12 +73,29 @@ export function useGame(options: UseGameOptions = {}) {
     pendingRef.current = pending
   }, [pending])
 
+  const refreshEngineStatus = useCallback(async (): Promise<EngineStatusDto | null> => {
+    try {
+      const status = await gameApi.engineStatus()
+      setEngineStatus(status)
+      return status
+    } catch (caught) {
+      const status = {
+        available: false,
+        path: null,
+        error: caught instanceof Error ? caught.message : 'Unable to check Stockfish status.',
+      }
+      setEngineStatus(status)
+      return status
+    }
+  }, [])
+
   async function newGame(nextSettings = settings): Promise<GameStateDto | null> {
     setLoading(true)
     setPending(true)
     setError(null)
     setSelfPlayRunning(false)
     try {
+      void refreshEngineStatus()
       const created = await gameApi.createGame(requestFromSettings(nextSettings))
       setGame(created)
       setOrientation(resolveOrientation(nextSettings, created))
@@ -95,6 +116,13 @@ export function useGame(options: UseGameOptions = {}) {
       setPending(false)
     }
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void refreshEngineStatus()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [refreshEngineStatus])
 
   useEffect(() => {
     if (options.autoStart === false || startedRef.current) {
@@ -233,6 +261,7 @@ export function useGame(options: UseGameOptions = {}) {
     loading,
     pending,
     error,
+    engineStatus,
     settings,
     orientation,
     selfPlayRunning,
@@ -246,6 +275,7 @@ export function useGame(options: UseGameOptions = {}) {
     flipBoard,
     startSelfPlay,
     pauseSelfPlay,
+    refreshEngineStatus,
     toggleSelfPlay,
   }
 }

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+import chess
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 Color = Literal["white", "black"]
@@ -26,17 +27,17 @@ GameResultReason = Literal[
 
 class EngineSettings(BaseModel):
     limit_type: EngineLimitType = "movetime"
-    movetime_ms: int = 1000
-    depth: int | None = None
-    skill_level: int = 20
-    threads: int = 1
-    hash_mb: int = 64
+    movetime_ms: int = Field(default=1000, ge=50, le=60_000)
+    depth: int | None = Field(default=None, ge=1, le=40)
+    skill_level: int = Field(default=20, ge=0, le=20)
+    threads: int = Field(default=1, ge=1, le=32)
+    hash_mb: int = Field(default=64, ge=1, le=4096)
 
 
 class ClockSettings(BaseModel):
     enabled: bool = True
-    initial_ms: int = 600_000
-    increment_ms: int = 0
+    initial_ms: int = Field(default=600_000, ge=1_000, le=86_400_000)
+    increment_ms: int = Field(default=0, ge=0, le=60_000)
 
 
 class NewGameRequest(BaseModel):
@@ -44,18 +45,31 @@ class NewGameRequest(BaseModel):
     human_color: Color | Literal["random"] = "white"
     clock: ClockSettings = Field(default_factory=ClockSettings)
     engine: EngineSettings = Field(default_factory=EngineSettings)
+    fen: str | None = Field(default=None, max_length=200)
+
+    @field_validator("fen")
+    @classmethod
+    def validate_fen(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        fen = value.strip()
+        try:
+            chess.Board(fen)
+        except ValueError as exc:
+            raise ValueError("Invalid FEN.") from exc
+        return fen
 
 
 class MoveRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    from_square: str = Field(alias="from")
-    to_square: str = Field(alias="to")
+    from_square: str = Field(alias="from", pattern=r"^[a-h][1-8]$")
+    to_square: str = Field(alias="to", pattern=r"^[a-h][1-8]$")
     promotion: PromotionPiece | None = None
 
 
 class UndoRequest(BaseModel):
-    plies: int = 1
+    plies: int = Field(default=1, ge=1, le=500)
 
 
 class ResignRequest(BaseModel):
@@ -93,6 +107,12 @@ class ClockStateDto(BaseModel):
     black_ms: int | None
     active_color: Color | None
     increment_ms: int
+
+
+class EngineStatusDto(BaseModel):
+    available: bool
+    path: str | None
+    error: str | None
 
 
 class GameResultDto(BaseModel):

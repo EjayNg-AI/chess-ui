@@ -17,10 +17,17 @@ def anyio_backend():
 
 @pytest.fixture(autouse=True)
 def configure_service():
+    engine_service = FakeEngineService(["e2e4"])
+
+    async def run_engine_move_direct(game_service: GameService, game_id: str):
+        return game_service.engine_move(game_id)
+
+    app.state.engine_service = engine_service
     app.state.game_service = GameService(
-        engine_service=FakeEngineService(["e2e4"]),
+        engine_service=engine_service,
         clock_service=ClockService(lambda: 0.0),
     )
+    app.state.engine_move_runner = run_engine_move_direct
 
 
 @pytest.fixture
@@ -43,12 +50,43 @@ async def test_health(client):
     assert response.json() == {"ok": True}
 
 
+async def test_engine_status_endpoint(client):
+    response = await client.get("/api/engine/status")
+
+    assert response.status_code == 200
+    assert response.json() == {"available": True, "path": None, "error": None}
+
+
 async def test_create_game_endpoint(client):
     data = await create_game(client)
 
     assert data["game_id"]
     assert len(data["pieces"]) == 32
     assert data["legal_moves"]
+
+
+async def test_create_game_endpoint_accepts_fen(client):
+    response = await client.post(
+        "/api/games",
+        json={"fen": "7k/4P3/8/8/8/8/8/4K3 w - - 0 1"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fen"].startswith("7k/4P3")
+    assert {piece["square"] for piece in data["pieces"]} == {"e1", "e7", "h8"}
+
+
+async def test_create_game_endpoint_rejects_invalid_settings(client):
+    response = await client.post(
+        "/api/games",
+        json={
+            "engine": {"movetime_ms": -1, "skill_level": 99, "threads": 0, "hash_mb": 0},
+            "clock": {"enabled": True, "initial_ms": -1, "increment_ms": -1},
+        },
+    )
+
+    assert response.status_code == 422
 
 
 async def test_get_game_endpoint(client):
@@ -85,6 +123,17 @@ async def test_move_endpoint_rejects_illegal_move(client):
     assert response.json()["detail"]["code"] == "illegal_move"
 
 
+async def test_move_endpoint_rejects_invalid_square_shape(client):
+    game = await create_game(client)
+
+    response = await client.post(
+        f"/api/games/{game['game_id']}/move",
+        json={"from": "z9", "to": "e4", "promotion": None},
+    )
+
+    assert response.status_code == 422
+
+
 async def test_engine_move_endpoint(client):
     game = await create_game(client)
 
@@ -106,6 +155,14 @@ async def test_undo_endpoint(client):
     assert response.status_code == 200
     assert response.json()["turn"] == "white"
     assert response.json()["move_history"] == []
+
+
+async def test_undo_endpoint_rejects_invalid_plies(client):
+    game = await create_game(client)
+
+    response = await client.post(f"/api/games/{game['game_id']}/undo", json={"plies": 0})
+
+    assert response.status_code == 422
 
 
 async def test_resign_endpoint(client):

@@ -109,6 +109,19 @@ def test_promotion_preserves_piece_id_and_changes_type():
     assert state.last_move.uci == "e7e8q"
 
 
+def test_reset_preserves_manual_starting_fen():
+    service = service_with_fake_engine()
+    state = service.create_game(
+        NewGameRequest(fen="7k/4P3/8/8/8/8/8/4K3 w - - 0 1")
+    )
+
+    state = service.apply_move_uci(state.game_id, "e7e8q")
+    reset = service.reset(state.game_id)
+
+    assert reset.fen.startswith("7k/4P3")
+    assert {piece.square for piece in reset.pieces} == {"e1", "e7", "h8"}
+
+
 def test_fools_mate_detects_checkmate():
     service = service_with_fake_engine()
     state = service.create_game()
@@ -121,6 +134,14 @@ def test_fools_mate_detects_checkmate():
     assert state.result.reason == "checkmate"
     assert state.result.winner == "black"
     assert state.result.result == "0-1"
+
+
+def test_claimable_fifty_move_draw_is_not_automatic():
+    service = service_with_fake_engine()
+    state = service.create_game(fen="7k/8/8/8/8/8/R7/K7 w - - 100 51")
+
+    assert state.game_over is False
+    assert state.result is None
 
 
 def test_undo_restores_board_piece_ids_and_history():

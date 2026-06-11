@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { Board } from '../src/components/Board/Board'
+import { legalTargetsForSquare } from '../src/components/Board/boardRules'
 import type { GameStateDto, PieceDto } from '../src/types/chess'
 import { lastMove, makeGameState } from './fixtures'
 
@@ -23,11 +24,11 @@ beforeAll(() => {
   })
 })
 
-function renderBoard(state: GameStateDto, onMove = vi.fn()) {
+function renderBoard(state: GameStateDto, onMove = vi.fn(), disabled = false) {
   render(
     <Board
       check={state.check}
-      disabled={false}
+      disabled={disabled}
       lastMove={state.last_move}
       legalMoves={state.legal_moves}
       onMove={onMove}
@@ -81,6 +82,19 @@ describe('Board', () => {
 
     expect(screen.getByTestId('hint-e3')).toBeInTheDocument()
     expect(screen.getByTestId('hint-e4')).toBeInTheDocument()
+  })
+
+  it('deduplicates_promotion_target_hints', () => {
+    expect(legalTargetsForSquare('e7', ['e7e8q', 'e7e8r', 'e7e8b', 'e7e8n'])).toEqual(['e8'])
+  })
+
+  it('disabled_board_ignores_click_selection', () => {
+    renderBoard(makeGameState(), vi.fn(), true)
+
+    fireEvent.click(screen.getByTestId('piece-white-pawn-e2'))
+
+    expect(screen.getByTestId('square-e2')).not.toHaveClass('selected')
+    expect(screen.queryByTestId('hint-e3')).not.toBeInTheDocument()
   })
 
   it('drag_legal_move_calls_onMove', () => {

@@ -1,4 +1,4 @@
-import type { GameStateDto, MoveRequest, NewGameRequest } from '../types/chess'
+import type { EngineStatusDto, GameStateDto, MoveRequest, NewGameRequest } from '../types/chess'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
@@ -30,23 +30,26 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    let body: ApiErrorBody = {}
+    let code = 'api_error'
+    let message = `Request failed with status ${response.status}`
     try {
-      body = (await response.json()) as ApiErrorBody
+      const body = (await response.json()) as ApiErrorBody
+      code = body.detail?.code ?? code
+      message = body.detail?.message ?? message
     } catch {
-      body = {}
+      // Keep the default API error message when the response body is not JSON.
     }
-    throw new ApiError(
-      response.status,
-      body.detail?.code ?? 'api_error',
-      body.detail?.message ?? `Request failed with status ${response.status}`,
-    )
+    throw new ApiError(response.status, code, message)
   }
 
   return (await response.json()) as T
 }
 
 export const gameApi = {
+  engineStatus(): Promise<EngineStatusDto> {
+    return requestJson<EngineStatusDto>('/api/engine/status')
+  },
+
   createGame(request: NewGameRequest): Promise<GameStateDto> {
     return requestJson<GameStateDto>('/api/games', {
       method: 'POST',

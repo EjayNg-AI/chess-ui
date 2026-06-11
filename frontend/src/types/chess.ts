@@ -26,6 +26,7 @@ export type NewGameRequest = {
   human_color: Color | 'random'
   clock: ClockSettings
   engine: EngineSettings
+  fen?: string | null
 }
 
 export type MoveRequest = {
@@ -63,6 +64,12 @@ export type ClockStateDto = {
   black_ms: number | null
   active_color: Color | null
   increment_ms: number
+}
+
+export type EngineStatusDto = {
+  available: boolean
+  path: string | null
+  error: string | null
 }
 
 export type GameResultDto = {
@@ -118,5 +125,6 @@ export const defaultGameSettings: GameSettings = {
     threads: 1,
     hash_mb: 64,
   },
+  fen: null,
   orientation: 'auto',
 }

@@ -62,7 +62,7 @@ export function clientPointToSquare(
   const x = clientX - boardRect.left
   const y = clientY - boardRect.top
 
-  if (x < 0 || y < 0 || x > boardRect.width || y > boardRect.height) {
+  if (x < 0 || y < 0 || x >= boardRect.width || y >= boardRect.height) {
     return null
   }
 

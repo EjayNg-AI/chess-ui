@@ -168,6 +168,21 @@ export function SettingsPanel({ settings, onChange }: SettingsPanelProps) {
           <option value="black">Black</option>
         </select>
       </label>
+
+      <label>
+        Start FEN
+        <textarea
+          rows={3}
+          spellCheck={false}
+          value={settings.fen ?? ''}
+          onChange={(event) =>
+            onChange({
+              ...settings,
+              fen: event.target.value.trim() ? event.target.value : null,
+            })
+          }
+        />
+      </label>
     </section>
   )
 }

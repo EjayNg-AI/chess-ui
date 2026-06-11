@@ -8,8 +8,8 @@ These instructions apply to the whole repository.
 
 - Backend: `backend/app` using FastAPI, Pydantic, `python-chess`, and pytest.
 - Frontend: `frontend/src` using React, TypeScript, Vite, Vitest, and React Testing Library.
-- Original implementation contract: `engineering_spec.md`.
-- Current status and roadmap: `IMPLEMENTATION_STATE.md`.
+- Original implementation contract: `docs/engineering_spec.md`.
+- Current status and roadmap: `docs/IMPLEMENTATION_STATE.md`.
 
 ## Engineering Rules
 
@@ -34,7 +34,7 @@ Optional Stockfish integration:
 
 ```bash
 cd backend
-STOCKFISH_PATH=/usr/games/stockfish pytest -m stockfish
+RUN_STOCKFISH_TESTS=1 STOCKFISH_PATH=/usr/games/stockfish pytest -m stockfish
 ```
 
 Frontend:
@@ -43,6 +43,7 @@ Frontend:
 cd frontend
 npm test
 npm run build
+npm run lint
 ```
 
 Local run:

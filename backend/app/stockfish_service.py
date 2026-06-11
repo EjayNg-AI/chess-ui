@@ -10,7 +10,7 @@ import chess.engine
 from dotenv import load_dotenv
 
 from .errors import EngineUnavailableError
-from .models import EngineSettings
+from .models import EngineSettings, EngineStatusDto
 
 
 class EngineProtocol(Protocol):
@@ -31,6 +31,9 @@ class FakeEngineService:
         if isinstance(move, chess.Move):
             return move
         return chess.Move.from_uci(move)
+
+    def status(self) -> EngineStatusDto:
+        return EngineStatusDto(available=True, path=None, error=None)
 
 
 class StockfishEngineService:
@@ -71,6 +74,21 @@ class StockfishEngineService:
             if result.move is None:
                 raise EngineUnavailableError("Stockfish did not return a move.")
             return result.move
+
+    def status(self) -> EngineStatusDto:
+        if not self.stockfish_path:
+            return EngineStatusDto(
+                available=False,
+                path=None,
+                error="STOCKFISH_PATH is not configured.",
+            )
+        if not Path(self.stockfish_path).exists():
+            return EngineStatusDto(
+                available=False,
+                path=self.stockfish_path,
+                error=f"Stockfish binary does not exist: {self.stockfish_path}",
+            )
+        return EngineStatusDto(available=True, path=self.stockfish_path, error=None)
 
     def close(self) -> None:
         with self._lock:

@@ -2,13 +2,21 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
+from anyio import to_thread
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .errors import ChessAppError
 from .game_service import GameService
-from .models import GameStateDto, MoveRequest, NewGameRequest, ResignRequest, UndoRequest
+from .models import (
+    EngineStatusDto,
+    GameStateDto,
+    MoveRequest,
+    NewGameRequest,
+    ResignRequest,
+    UndoRequest,
+)
 from .stockfish_service import StockfishEngineService
 
 
@@ -35,6 +43,10 @@ app.state.engine_service = engine_service
 app.state.game_service = GameService(engine_service=engine_service)
 
 
+async def run_engine_move_in_thread(game_service: GameService, game_id: str) -> GameStateDto:
+    return await to_thread.run_sync(game_service.engine_move, game_id)
+
+
 async def get_game_service(request: Request) -> GameService:
     return request.app.state.game_service
 
@@ -50,6 +62,19 @@ async def chess_error_handler(_: Request, exc: ChessAppError) -> JSONResponse:
 @app.get("/api/health")
 async def health() -> dict[str, bool]:
     return {"ok": True}
+
+
+@app.get("/api/engine/status", response_model=EngineStatusDto)
+async def engine_status(request: Request) -> EngineStatusDto:
+    service = getattr(request.app.state, "engine_service", None)
+    status = getattr(service, "status", None)
+    if status is None:
+        return EngineStatusDto(
+            available=False,
+            path=None,
+            error="No chess engine service is configured.",
+        )
+    return status()
 
 
 @app.post("/api/games", response_model=GameStateDto)
@@ -79,10 +104,12 @@ async def move(
 
 @app.post("/api/games/{game_id}/engine-move", response_model=GameStateDto)
 async def engine_move(
+    request: Request,
     game_id: str,
     game_service: GameService = Depends(get_game_service),
 ) -> GameStateDto:
-    return game_service.engine_move(game_id)
+    runner = getattr(request.app.state, "engine_move_runner", run_engine_move_in_thread)
+    return await runner(game_service, game_id)
 
 
 @app.post("/api/games/{game_id}/undo", response_model=GameStateDto)

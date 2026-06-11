@@ -67,10 +67,18 @@
   text-transform: uppercase;
 }
 
-.error-text {
+.error-text,
+.warning-text {
   margin: 6px 0 0;
-  color: #ffcf9f;
   font-size: 14px;
+}
+
+.error-text {
+  color: #ffcf9f;
+}
+
+.warning-text {
+  color: #ffd76a;
 }
 
 .player-bar {
@@ -146,7 +154,8 @@
 .controls button,
 .settings-panel button,
 .settings-panel select,
-.settings-panel input {
+.settings-panel input,
+.settings-panel textarea {
   min-height: 38px;
   border: 1px solid rgb(255 255 255 / 0.12);
   border-radius: 6px;
@@ -224,10 +233,17 @@
 }
 
 .settings-panel input,
-.settings-panel select {
+.settings-panel select,
+.settings-panel textarea {
   width: 100%;
   box-sizing: border-box;
   padding: 7px 8px;
+}
+
+.settings-panel textarea {
+  min-height: 76px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
 }
 
 @media (max-width: 980px) {

@@ -8,7 +8,13 @@ from app.models import EngineSettings
 from app.stockfish_service import StockfishEngineService
 
 
-pytestmark = pytest.mark.stockfish
+pytestmark = [
+    pytest.mark.stockfish,
+    pytest.mark.skipif(
+        os.getenv("RUN_STOCKFISH_TESTS") != "1",
+        reason="Set RUN_STOCKFISH_TESTS=1 to run Stockfish integration tests.",
+    ),
+]
 
 
 @pytest.mark.skipif(
