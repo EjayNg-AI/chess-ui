@@ -1,0 +1,41 @@
+.promotion-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 0.38);
+}
+
+.promotion-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(96px, 1fr));
+  gap: 8px;
+  padding: 14px;
+  width: min(280px, calc(100% - 32px));
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 8px;
+  background: #262421;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.38);
+}
+
+.promotion-option,
+.promotion-cancel {
+  min-height: 42px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 6px;
+  color: #f5f5f5;
+  background: #3a3835;
+  font: inherit;
+  cursor: pointer;
+}
+
+.promotion-option:hover,
+.promotion-cancel:hover {
+  background: #4b4945;
+}
+
+.promotion-cancel {
+  grid-column: 1 / -1;
+  color: #d8d3cb;
+}

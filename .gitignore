@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 *.local
+.python-version
 
 # Python virtual environments
 .venv/
@@ -22,6 +23,9 @@ __pycache__/
 .coverage.*
 htmlcov/
 coverage.xml
+.hypothesis/
+.tox/
+.nox/
 
 # Build and packaging outputs
 build/
@@ -37,13 +41,17 @@ tmp/
 temp/
 .cache/
 
-# Frontend/dependency artifacts, if a UI build is added later
+# Frontend/dependency artifacts
 node_modules/
 .npm/
 .pnpm-store/
 .yarn/
-dist/
+*.tsbuildinfo
+.vite/
+dist-ssr/
 coverage/
+playwright-report/
+test-results/
 
 # Editor, OS, and tooling noise
 .DS_Store
